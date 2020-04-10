@@ -33,3 +33,12 @@ while also improving reproducibility and tracking the provenance of data.
 Part 3: Return of the King
 --------------------------
 Part three (coming later this week). What is it that is returning? ;-)
+
+.. toctree::
+   :hidden:
+
+   about.rst
+   fellowship.rst
+   two_towers.rst
+   return_of_the_king.rst
+

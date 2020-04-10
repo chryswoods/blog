@@ -269,5 +269,7 @@ evidence to get Leon to trust that I wasn't wasting time, and
 `by the evening <https://github.com/metawards/MetaWards/commit/68de9c5e066d3b56d9018cd1d4648119b46181a9>`__.
 I had succeeded and the Python was faster than the C.
 
+What's next?
+------------
+
 `Part 2 - The Two Towers of Optimisation and Robustness <../two_towers>`__
---------------------------------------------------------------------------
