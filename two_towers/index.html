@@ -51,7 +51,552 @@
             
   <div class="section" id="the-two-towers">
 <h1>The Two Towers<a class="headerlink" href="#the-two-towers" title="Permalink to this headline">¶</a></h1>
-<p>Coming later this weekend…</p>
+<p>This is part two of a <a class="reference external" href="https://chryswoods.github.io/blog">three part post</a>
+detailing my RSE work on the <a class="reference external" href="https://metawards.github.io">MetaWards project</a>.
+In <a class="reference external" href="https://chryswoods.github.io/blog/fellowship">part one</a>
+I talked about trust in software and data, and why my first
+step was to port the <a class="reference external" href="https://github.com/ldanon/MetaWards">original code</a>
+from C to Python.</p>
+<p>In this part I am going to discuss how I tackled the two major challenges
+of research software; how to make it fast, while also keeping it correct.</p>
+<div class="section" id="climbing-orthanc">
+<h2>Climbing Orthanc<a class="headerlink" href="#climbing-orthanc" title="Permalink to this headline">¶</a></h2>
+<p>The first tower to climb is that of robustness, reproducibility and provenance.
+The most important requirement of any piece of research software is that it
+is <em>correct</em>. But what does <em>correct</em> mean? In my opinion, correct codes
+are ones which;</p>
+<ol class="arabic simple">
+<li><p>are <strong>robust</strong> - give the <em>correct</em> output for a given input,</p></li>
+<li><p>are <strong>reproducible</strong> - give the same outputs for the same inputs,</p></li>
+<li><p>report <strong>provenance</strong> - provide enough information in the output to
+enable someone else to rerun and reproduce it.</p></li>
+</ol>
+<div class="section" id="against-some-i-have-not-yet-been-tested">
+<h3>Against some, I have not yet been tested<a class="headerlink" href="#against-some-i-have-not-yet-been-tested" title="Permalink to this headline">¶</a></h3>
+<p>Level one is robustness, which is tackled by testing. While you cannot
+test everything, it is
+really important to set up an infrastructure and workflow that makes
+it easy to add tests as a project develops. To this end, the first thing
+I did was set up <a class="reference external" href="https://docs.pytest.org/en/latest/">pytest</a>, and made
+sure that this was run regularly. I asked Lester in my team to set up
+continuous integration using
+<a class="reference external" href="https://github.com/metawards/MetaWards/actions">GitHub actions</a>. He also
+kindly added a status badge to the
+<a class="reference external" href="https://metawards.github.io">main website</a> so that it was very clear
+when something was broken. I also made sure that we adopted robust
+development practices of using <code class="docutils literal notranslate"><span class="pre">devel</span></code> as the development branch,
+<code class="docutils literal notranslate"><span class="pre">master</span></code> as the release branch, and using feature branches for day-to-day
+development. As this way of working would be new for some developers,
+we also wrote a
+<a class="reference external" href="https://metawards.github.io/MetaWards/development.html">detailed developer guide</a>
+that showed how to use feature branches, how to write tests, how to
+use virtual environments, how to document code, together with a general
+coding style guide that would make it easier for others to learn MetaWards.</p>
+</div>
+<div class="section" id="some-things-that-should-not-have-been-forgotten-were-lost">
+<h3>Some things that should not have been forgotten were lost<a class="headerlink" href="#some-things-that-should-not-have-been-forgotten-were-lost" title="Permalink to this headline">¶</a></h3>
+<p>Level two is reproducibility, which is tackled using inputs.
+First, you have to look through the
+code and find all of the inputs. Once you’ve located them all, you then
+run the code with those inputs, and verify that you always get the
+same output.</p>
+<p>Hunting for inputs is not as easy as you might think. Yes, there are obvious
+inputs, like input files and command line arguments.
+But there also hidden inputs that lurk, like goblins, in the shadows of
+the code. These goblins include random number
+seeds, time of day, number of parallel threads, compile-time constants,
+and the size of the variables (floats or doubles). MetaWards had them all!</p>
+<p>This became clear when I first tried to run MetaWards.
+It’s command line looks something like this;</p>
+<div class="highlight-bash notranslate"><div class="highlight"><pre><span></span>./wards.o <span class="m">15324</span> Testing/ncovparams.csv <span class="m">0</span> <span class="m">1</span>.0
+</pre></div>
+</div>
+<p>A check in the code revealed that the first argument (15324) was a random number
+seed, the second was the name of the input file, the third was the line
+in the input file to read, and the last set a variable called <code class="docutils literal notranslate"><span class="pre">UV</span></code>.</p>
+<p>I ran MetaWards several times using these arguments, and each time, it
+came back with a different answers. Something was definitely up…</p>
+</div>
+<div class="section" id="full-of-darkness-and-danger">
+<h3>Full of darkness and danger<a class="headerlink" href="#full-of-darkness-and-danger" title="Permalink to this headline">¶</a></h3>
+<p>A look in the code revealed that this was because the random number seed
+was being <a class="reference external" href="https://github.com/ldanon/MetaWards/blob/9aecf26f0ec625398334ae0377d74b840b2b988e/Model/main_29_03.c#L36">adjusted using the current time</a>.
+On checking with Leon it turned out he was doing this because he was running
+many jobs and was not confident that the bash <code class="docutils literal notranslate"><span class="pre">$RANDOM</span></code> variable that he
+was using in his job script would have given him good random number seeds.</p>
+<p>Because MetaWards is a stochastic program, this method of seeding meant that
+it was impossible to reproduce any MetaWards output without knowing
+exactly what time the program was run. I immediately
+<a class="reference external" href="https://github.com/metawards/MetaWards/blob/c74bc66f72c7b421f622cf4895f7d6105540b906/original/src/main_RepeatsNcov.c#L35">changed this</a>.</p>
+<p>Now, every time I ran MetaWards I got the same output. This
+<a class="reference external" href="https://github.com/metawards/MetaWards/blob/devel/original/expected_test_output.txt">reproducible output</a>
+was then used as the <a class="reference external" href="https://github.com/metawards/MetaWards/blob/devel/tests/test_integration.py">integration test</a>
+for my Python code.</p>
+<p>To stop me chasing my tail, I double-checked that both C and Python gave
+the same sequence of random numbers. I changed both the C and Python
+codes to
+<a class="reference external" href="https://github.com/metawards/MetaWards/blob/c74bc66f72c7b421f622cf4895f7d6105540b906/src/metawards/_network.py#L279">print the first five generated random numbers to the screen</a>.
+This way, I would see immediately if there were any differences
+(there were not) and if anything changed.</p>
+</div>
+<div class="section" id="his-gaze-pierces-cloud-shadow-earth-and-flesh">
+<h3>His gaze pierces cloud, shadow, earth and flesh<a class="headerlink" href="#his-gaze-pierces-cloud-shadow-earth-and-flesh" title="Permalink to this headline">¶</a></h3>
+<p>A deeper look at the C code showed that there a significant number of inputs
+which weren’t specified on the command line. These included
+compile time flags to <a class="reference external" href="https://github.com/metawards/MetaWards/blob/c74bc66f72c7b421f622cf4895f7d6105540b906/original/src/globals.h#L9">set the disease being modelled</a>
+or to switch on or off control measures, such as
+<a class="reference external" href="https://github.com/metawards/MetaWards/blob/c74bc66f72c7b421f622cf4895f7d6105540b906/original/src/globals.h#L12">self isolation</a>
+or whether the model <a class="reference external" href="https://github.com/metawards/MetaWards/blob/c74bc66f72c7b421f622cf4895f7d6105540b906/original/src/globals.h#L14">treated weekends differently</a>.</p>
+<p>There were also definitions of disease parameters
+<a class="reference external" href="https://github.com/metawards/MetaWards/blob/c74bc66f72c7b421f622cf4895f7d6105540b906/original/src/wards_lib.c#L1579">specified in code</a>,
+as well as lots of <a class="reference external" href="https://github.com/ldanon/MetaWards/blob/9aecf26f0ec625398334ae0377d74b840b2b988e/Model/wards_lib.c#L1652">hard coded parameters</a>.</p>
+<p>The program also relied on reading data from extra files that were bundled
+with the repository, and it looked for those files in a
+<a class="reference external" href="https://github.com/ldanon/MetaWards/blob/9aecf26f0ec625398334ae0377d74b840b2b988e/Model/wards_lib.c#L1777">hard coded directory</a>
+(e.g. <code class="docutils literal notranslate"><span class="pre">$HOME/GitHub/MetaWards/2011Data</span></code>).</p>
+<p>This reveals something that I find generally true when I read other people’s
+code - how it is written gives me a window into how the developer works and how
+they think. In this case, the code is written to work well on the developers
+own computer only. They make changes to inputs in the source code,
+compile a new MetaWards binary,
+and then run that to get an output. There was a little bit of tracking of
+versions by saving <code class="docutils literal notranslate"><span class="pre">main</span></code> functions into
+<a class="reference external" href="https://github.com/ldanon/MetaWards/tree/master/Model">files with different names</a>,
+but it is clear that the code was being changed, recompiled and re-run, with
+inputs, executables and outputs likely becoming jumbled together.
+Maintaining reproducibility with such a workflow may be challenging.</p>
+</div>
+<div class="section" id="it-is-hardly-possible-to-separate-you">
+<h3>It is hardly possible to separate you<a class="headerlink" href="#it-is-hardly-possible-to-separate-you" title="Permalink to this headline">¶</a></h3>
+<p>To encourage adoption of a reproducible workflow my next step was to
+separate all data inputs into a <a class="reference external" href="https://github.com/metawards/MetaWardsData">different GitHub repository</a>.
+I divided the inputs into three classes, depending on whether they were
+used to describe a <a class="reference external" href="https://github.com/metawards/MetaWardsData/blob/master/diseases/ncov.json">disease</a>,
+a <a class="reference external" href="https://github.com/metawards/MetaWardsData/tree/master/model_data/2011Data">model</a>
+or <a class="reference external" href="https://github.com/metawards/MetaWardsData/blob/master/parameters/march29.json">simulation parameters</a>.</p>
+<p>I used JSON as the format for any new files I created, as this was both
+very easy for a human to read and edit, and for a computer to load. I then
+changed my Python code to use these inputs, and verified that my integration
+test still passed. I then removed the hard-coded paths, and instead supplied
+either a clear command line option or an environment variable to enable the
+user to specify the location of their MetaWardsData clone.
+Once this worked, I discussed this with Leon and we agreed
+to make similar changes to the C code (which Chris in my team quickly did).</p>
+</div>
+<div class="section" id="we-want-a-map-not-a-gollum">
+<h3>We want a map, not a Gollum<a class="headerlink" href="#we-want-a-map-not-a-gollum" title="Permalink to this headline">¶</a></h3>
+<p>With the second level of reproducibility climbed, the last level was to
+embed providence. To understand why providence is important, it is useful
+to consider the hobbits’ journey and the role of Gollum.</p>
+<p>Gollum is an interesting character because the hobbits needed him to travel
+with them, despite the danger he poses, and the huge personal cost he
+suffers.</p>
+<p>Gollum was needed as he had been to Mordor before, and so could use
+his memory of that journey to act as a guide. If he’d kept a detailed map, then the
+hobbits could have simply used that to recreate Gollum’s steps, and much
+misadventure and perilous encouters with spiders would have been avoided.</p>
+<p>In much the same way, the path to reproducibility is rocky if we have
+to enlist the original researcher to manually
+guide us through the process of recreating their outputs. It costs the
+researcher time that they likely don’t have, plus risks adventure if their
+memory is imperfect, or the terrain (operating system, libraries or
+software) has changed since their last visit.</p>
+<p>The solution is that the software itself must create a map of how it was
+used. This map must be automatically generated, and contain
+sufficient detail to guide others in the future.</p>
+</div>
+<div class="section" id="original-or-extended-edition">
+<h3>Original or Extended Edition?<a class="headerlink" href="#original-or-extended-edition" title="Permalink to this headline">¶</a></h3>
+<p>Embedding <a class="reference external" href="https://en.wikipedia.org/wiki/Provenance">provenance</a> of
+every input and piece of software used in a calculation is a way to
+start the automatic generation of such a map. To this end, Lester in my team
+used <a class="reference external" href="https://github.com/warner/python-versioneer">versioneer</a> to
+automatically add version tags to MetaWards Python. We also had them added
+to the files in the
+<a class="reference external" href="https://github.com/metawards/MetaWardsData/blob/master/version">MetaWardsData</a>
+directory. We made sure that these versions,
+together with all inputs and random number seeds, were written to the outputs
+produced by MetaWards, for example:</p>
+<div class="highlight-default notranslate"><div class="highlight"><pre><span></span>            <span class="o">***********************</span>
+            <span class="n">metawards</span> <span class="n">version</span> <span class="mf">0.6</span><span class="o">.</span><span class="mi">0</span>
+            <span class="o">***********************</span>
+
+            <span class="o">--</span> <span class="n">Source</span> <span class="n">information</span> <span class="o">--</span>
+<span class="n">repository</span><span class="p">:</span> <span class="n">https</span><span class="p">:</span><span class="o">//</span><span class="n">github</span><span class="o">.</span><span class="n">com</span><span class="o">/</span><span class="n">metawards</span><span class="o">/</span><span class="n">MetaWards</span>
+                 <span class="n">branch</span><span class="p">:</span> <span class="n">devel</span>
+<span class="n">revision</span><span class="p">:</span> <span class="n">fc15e6280c288f6e445780bf04f2feb67de384e2</span>
+    <span class="n">last</span> <span class="n">modified</span><span class="p">:</span> <span class="mi">2020</span><span class="o">-</span><span class="mi">04</span><span class="o">-</span><span class="mi">09</span><span class="n">T21</span><span class="p">:</span><span class="mi">40</span><span class="p">:</span><span class="mi">51</span><span class="o">+</span><span class="mi">0100</span>
+</pre></div>
+</div>
+<p>is printed at the top of every run. Similarly these versions (and values) for
+parameter and disease data were also printed, e.g.:</p>
+<div class="highlight-default notranslate"><div class="highlight"><pre><span></span><span class="n">Using</span> <span class="n">disease</span>
+<span class="n">Disease</span> <span class="n">ncov</span>
+<span class="n">loaded</span> <span class="kn">from</span> <span class="o">/</span><span class="n">Users</span><span class="o">/</span><span class="n">chris</span><span class="o">/</span><span class="n">GitHub</span><span class="o">/</span><span class="n">MetaWardsData</span><span class="o">/</span><span class="n">diseases</span><span class="o">/</span><span class="n">ncov</span><span class="o">.</span><span class="n">json</span>
+<span class="n">repository</span><span class="p">:</span> <span class="n">https</span><span class="p">:</span><span class="o">//</span><span class="n">github</span><span class="o">.</span><span class="n">com</span><span class="o">/</span><span class="n">metawards</span><span class="o">/</span><span class="n">MetaWardsData</span>
+<span class="n">repository_branch</span><span class="p">:</span> <span class="n">master</span>
+<span class="n">repository_version</span><span class="p">:</span> <span class="mf">0.2</span><span class="o">.</span><span class="mi">0</span>
+
+<span class="n">beta</span> <span class="o">=</span> <span class="p">[</span><span class="mf">0.0</span><span class="p">,</span> <span class="mf">0.0</span><span class="p">,</span> <span class="mf">0.95</span><span class="p">,</span> <span class="mf">0.95</span><span class="p">,</span> <span class="mf">0.0</span><span class="p">]</span>
+<span class="n">progress</span> <span class="o">=</span> <span class="p">[</span><span class="mf">1.0</span><span class="p">,</span> <span class="mf">0.1923</span><span class="p">,</span> <span class="mf">0.909091</span><span class="p">,</span> <span class="mf">0.909091</span><span class="p">,</span> <span class="mf">0.0</span><span class="p">]</span>
+<span class="n">too_ill_to_move</span> <span class="o">=</span> <span class="p">[</span><span class="mf">0.0</span><span class="p">,</span> <span class="mf">0.0</span><span class="p">,</span> <span class="mf">0.0</span><span class="p">,</span> <span class="mf">0.0</span><span class="p">,</span> <span class="mf">0.0</span><span class="p">]</span>
+<span class="n">contrib_foi</span> <span class="o">=</span> <span class="p">[</span><span class="mf">1.0</span><span class="p">,</span> <span class="mf">1.0</span><span class="p">,</span> <span class="mf">1.0</span><span class="p">,</span> <span class="mf">1.0</span><span class="p">,</span> <span class="mf">0.0</span><span class="p">]</span>
+</pre></div>
+</div>
+<p>This meant that someone reading the outputs would know exactly which versions
+of the code and data we used. We even added in a check to see if the
+code had not been committed to Git. This let us alert the user that
+the code was <code class="docutils literal notranslate"><span class="pre">dirty</span></code>, and that
+<a class="reference external" href="https://metawards.github.io/MetaWards/usage.html#metawards-program">any outputs may not be reproducible</a>.</p>
+</div>
+</div>
+<div class="section" id="climbing-barad-dur">
+<h2>Climbing Barad-dûr<a class="headerlink" href="#climbing-barad-dur" title="Permalink to this headline">¶</a></h2>
+<p>Now that the Python and C codes were reproducible and in-agreement, the next
+tower to climb was to fix the oliphant in the room, namely that the Python
+code was horribly slow.</p>
+<p>Level one was that I needed something magical that would quickly speed
+up the Python. The bulk
+of the code was iterating through the <code class="docutils literal notranslate"><span class="pre">Node</span></code> data structures that represented
+an electoral ward, and the <code class="docutils literal notranslate"><span class="pre">Link</span></code> structs that connected them. I briefly
+considered using an existing graph library, but put that on hold as it would
+have taken too long (weeks+) to completely refactor. What I thought would be
+a quick win would be refactoring the Python list of <code class="docutils literal notranslate"><span class="pre">Node</span></code> and list of
+<code class="docutils literal notranslate"><span class="pre">Link</span></code> objects into a <code class="docutils literal notranslate"><span class="pre">Nodes</span></code> and <code class="docutils literal notranslate"><span class="pre">Links</span></code> structs of lists (e.g.
+<a class="reference external" href="https://en.wikipedia.org/wiki/AoS_and_SoA">an array of structs into a struct of arrays</a>
+transformation). This would allow me to switch to iterating over numpy arrays.</p>
+<p>I quickly made the change using <a class="reference external" href="https://github.com/metawards/MetaWards/blob/devel/tests/test_integration.py">test_integration.py</a>
+as a guardrail. Feeling duly proud of myself I ran the test and the code was
+<strong>four times slower!</strong> I switched the numpy arrays for standard
+<a class="reference external" href="https://docs.python.org/3/library/array.html">Python arrays</a> and now the
+code was just <em>two times slower</em>. How could Python lists be quicker?</p>
+<p>I checked the memory usage and Python lists were quicker, but consumed
+1.5GB compared to the ~95MB using numpy or arrays. I couldn’t stick with
+lists because the memory consumption would have been awful, so I double-checked
+what was going on with numpy and arrays. Another profile showed that arrays
+were two times slower at indexing for reading and writing compared to lists,
+while numpy was two times slower for reading, and four times slower for
+writing. A bit of searching on the internet revealed the obvious reason -
+arrays and numpy are not designed for random access. They have to do lot of
+boilerplate to verify the index is correct, then convert the raw <code class="docutils literal notranslate"><span class="pre">float</span></code> or
+<code class="docutils literal notranslate"><span class="pre">int</span></code> into a Python <code class="docutils literal notranslate"><span class="pre">float</span></code> or <code class="docutils literal notranslate"><span class="pre">int</span></code> object.</p>
+<div class="section" id="i-need-eagles">
+<h3>I need eagles<a class="headerlink" href="#i-need-eagles" title="Permalink to this headline">¶</a></h3>
+<p>At this point I realised that I needed something to come to the rescue.
+In short, I needed to find a way to compile the code that performed
+random array access so that I could avoid the costs of moving
+between raw numbers and Python objects. I tried <a class="reference external" href="https://numba.pydata.org">numba</a>,
+but it didn’t work. The code was still painfully slow. I needed something
+more powerful. I needed <a class="reference external" href="https://cython.org">cython</a>.</p>
+</div>
+<div class="section" id="now-is-the-hour-riders-of-rohan">
+<h3>Now is the hour! Riders of Rohan!<a class="headerlink" href="#now-is-the-hour-riders-of-rohan" title="Permalink to this headline">¶</a></h3>
+<p>Cython is a fantastic mix of C and Python that I have now grown to love
+(it is my current <a class="reference external" href="https://en.wikipedia.org/wiki/Law_of_the_instrument">hammer</a>).
+You write <code class="docutils literal notranslate"><span class="pre">.pyx</span></code> files that merge Python and C. These are compiled to
+C, from where they are then compiled into machine code. The basic idea
+is that you use <code class="docutils literal notranslate"><span class="pre">cdef</span></code> statements to type your objects. For example,
+this Python code…</p>
+<div class="highlight-python notranslate"><div class="highlight"><pre><span></span><span class="n">a</span> <span class="o">=</span> <span class="mf">0.5</span>
+<span class="n">b</span> <span class="o">=</span> <span class="mf">10.2</span>
+<span class="n">total</span> <span class="o">=</span> <span class="mf">0.0</span>
+
+<span class="k">for</span> <span class="n">i</span> <span class="ow">in</span> <span class="nb">range</span><span class="p">(</span><span class="mi">0</span><span class="p">,</span> <span class="mi">10</span><span class="p">);</span>
+    <span class="n">total</span> <span class="o">+=</span> <span class="n">a</span> <span class="o">*</span> <span class="n">b</span>
+</pre></div>
+</div>
+<p>becomes this Cython code</p>
+<div class="highlight-cython notranslate"><div class="highlight"><pre><span></span><span class="k">cdef</span> <span class="kt">int</span> <span class="nf">i</span> <span class="o">=</span> <span class="mf">0</span>
+
+<span class="k">cdef</span> <span class="kt">double</span> <span class="nf">a</span> <span class="o">=</span> <span class="mf">0.5</span>
+<span class="k">cdef</span> <span class="kt">double</span> <span class="nf">b</span> <span class="o">=</span> <span class="mf">10.2</span>
+<span class="k">cdef</span> <span class="kt">double</span> <span class="nf">total</span> <span class="o">=</span> <span class="mf">0.0</span>
+
+<span class="k">for</span> <span class="n">i</span> <span class="ow">in</span> <span class="nb">range</span><span class="p">(</span><span class="mf">0</span><span class="p">,</span> <span class="mf">10</span><span class="p">):</span>
+    <span class="n">total</span> <span class="o">+=</span> <span class="n">a</span> <span class="o">*</span> <span class="n">b</span>
+</pre></div>
+</div>
+<p>(I know that this is a pretty silly example - take a look at the excellent
+<a class="reference external" href="https://cython.readthedocs.io/en/latest/">cython documentation</a> and
+<a class="reference external" href="https://cython.readthedocs.io/en/latest/src/tutorial/cython_tutorial.html">basic tutorial</a>
+for some more real-world examples)</p>
+<p>There is a <a class="reference external" href="https://github.com/FedericoStra/cython-package-example">great template package</a>
+that makes it easy to write a Python <code class="docutils literal notranslate"><span class="pre">setup.py</span></code> for a Cython project,
+which I used and have adapted. After some quick tests that showed that
+Cython would really work, I then set about the process of Cythonizing
+my code. It was a lot of fun :-)</p>
+</div>
+<div class="section" id="i-know-what-hunts-you">
+<h3>I know what hunts you<a class="headerlink" href="#i-know-what-hunts-you" title="Permalink to this headline">¶</a></h3>
+<p>One of the reasons I enjoyed cythonizing was because I really enjoy the
+chase of optimising code. Software is slow for unexpected and oftentimes
+invisible reasons. You have to use profiling to actually find where a code
+is slow, and then use your good understanding of how computers work to
+fix the bottleneck and make it quicker. It is the ultimate
+experiment-hypothesis-implement-test design cycle, but repeated dozens of
+times as you move through each bottleneck. It is the best crossword
+puzzle mixed with the best scientific experiment, with enough dark art
+and magic to make it a creative as well as an intellectual endeavour.</p>
+</div>
+<div class="section" id="eyes-always-watching">
+<h3>Eyes always watching<a class="headerlink" href="#eyes-always-watching" title="Permalink to this headline">¶</a></h3>
+<p>I like profilers and use them a lot. But they are blunt tools which
+disrupt the workflow of running a program. I much prefer in-code
+instrumenting, whereby a simple profiler is embedded in code and
+switched on or off with a command line argument.</p>
+<p>Simple profilers are very easy to write. They are just calls to
+a timing function either side of the code you want to profile.
+The difference between your two timing calls is the time it
+took to run your code. Timers on computers now have nanosecond
+resolutions, and obtaining the time is essentially free, meaning
+that profiling adds no overhead to your code runtime. This means
+that you can leave profiling switched on, and thus always
+be able to know how fast your code is running, regardless of which
+machine it is running on. Indeed, (eventually!) I will write some
+performance regression tests to add to the suite that will
+use the output of profiling to make sure that I don’t
+inadvertently slow down the code.</p>
+<p>To make embedded profiling easier to use, I created a very simple
+<a class="reference external" href="https://github.com/metawards/MetaWards/blob/devel/src/metawards/utils/_profiler.py">Profiler</a>
+class that recursively measured times of instrumented blocks, e.g.</p>
+<div class="highlight-python notranslate"><div class="highlight"><pre><span></span><span class="n">p</span> <span class="o">=</span> <span class="n">Profiler</span><span class="p">()</span>
+
+<span class="n">p</span> <span class="o">=</span> <span class="n">p</span><span class="o">.</span><span class="n">start</span><span class="p">(</span><span class="s2">&quot;loop&quot;</span><span class="p">)</span>
+
+<span class="k">for</span> <span class="n">i</span> <span class="ow">in</span> <span class="nb">range</span><span class="p">(</span><span class="mi">0</span><span class="p">,</span> <span class="mi">10</span><span class="p">):</span>
+    <span class="n">p</span> <span class="o">=</span> <span class="n">p</span><span class="o">.</span><span class="n">start</span><span class="p">(</span><span class="n">f</span><span class="s2">&quot;iteration_{i}&quot;</span><span class="p">)</span>
+
+    <span class="c1"># do stuff</span>
+
+    <span class="n">p</span> <span class="o">=</span> <span class="n">p</span><span class="o">.</span><span class="n">stop</span><span class="p">()</span>
+
+<span class="n">p</span> <span class="o">=</span> <span class="n">p</span><span class="o">.</span><span class="n">stop</span><span class="p">()</span>
+
+<span class="k">print</span><span class="p">(</span><span class="n">p</span><span class="p">)</span>
+</pre></div>
+</div>
+<p>This gave fantastically useful output that guided my cythonizing, e.g.:</p>
+<div class="highlight-default notranslate"><div class="highlight"><pre><span></span> <span class="mi">157</span> <span class="mi">406</span>
+<span class="n">S</span><span class="p">:</span> <span class="mi">55833958</span>    <span class="n">E</span><span class="p">:</span> <span class="mi">215</span>    <span class="n">I</span><span class="p">:</span> <span class="mi">126</span>    <span class="n">R</span><span class="p">:</span> <span class="mi">247778</span>    <span class="n">IW</span><span class="p">:</span> <span class="mi">11</span>   <span class="n">TOTAL</span> <span class="n">POPULATION</span> <span class="mi">56081862</span>
+
+<span class="n">Total</span> <span class="n">time</span><span class="p">:</span> <span class="mf">121.805</span> <span class="n">ms</span> <span class="p">(</span><span class="mf">121.805</span> <span class="n">ms</span><span class="p">)</span>
+  \<span class="o">-</span><span class="n">timing</span> <span class="k">for</span> <span class="n">iteration</span> <span class="mi">157</span><span class="p">:</span> <span class="mf">121.805</span> <span class="n">ms</span> <span class="p">(</span><span class="mf">121.723</span> <span class="n">ms</span><span class="p">)</span>
+      \<span class="o">-</span><span class="n">additional_seeds</span><span class="p">:</span> <span class="mf">0.008</span> <span class="n">ms</span>
+      \<span class="o">-</span><span class="n">iterate</span><span class="p">:</span> <span class="mf">86.709</span> <span class="n">ms</span> <span class="p">(</span><span class="mf">86.687</span> <span class="n">ms</span><span class="p">)</span>
+          \<span class="o">-</span><span class="n">iterate</span><span class="p">:</span> <span class="mf">86.687</span> <span class="n">ms</span> <span class="p">(</span><span class="mf">86.586</span> <span class="n">ms</span><span class="p">)</span>
+              \<span class="o">-</span><span class="n">setup</span><span class="p">:</span> <span class="mf">0.035</span> <span class="n">ms</span>
+              \<span class="o">-</span><span class="n">loop_over_classes</span><span class="p">:</span> <span class="mf">11.721</span> <span class="n">ms</span> <span class="p">(</span><span class="mf">11.310</span> <span class="n">ms</span><span class="p">)</span>
+                  \<span class="o">-</span><span class="n">work_0</span><span class="p">:</span> <span class="mf">2.565</span> <span class="n">ms</span>
+                  \<span class="o">-</span><span class="n">play_0</span><span class="p">:</span> <span class="mf">0.044</span> <span class="n">ms</span>
+                  \<span class="o">-</span><span class="n">work_1</span><span class="p">:</span> <span class="mf">2.573</span> <span class="n">ms</span>
+                  \<span class="o">-</span><span class="n">play_1</span><span class="p">:</span> <span class="mf">0.665</span> <span class="n">ms</span>
+                  \<span class="o">-</span><span class="n">work_2</span><span class="p">:</span> <span class="mf">2.426</span> <span class="n">ms</span>
+                  \<span class="o">-</span><span class="n">play_2</span><span class="p">:</span> <span class="mf">0.226</span> <span class="n">ms</span>
+                  \<span class="o">-</span><span class="n">work_3</span><span class="p">:</span> <span class="mf">2.562</span> <span class="n">ms</span>
+                  \<span class="o">-</span><span class="n">play_3</span><span class="p">:</span> <span class="mf">0.249</span> <span class="n">ms</span>
+              \<span class="o">-</span><span class="n">recovery</span><span class="p">:</span> <span class="mf">19.200</span> <span class="n">ms</span>
+              \<span class="o">-</span><span class="n">fixed</span><span class="p">:</span> <span class="mf">21.143</span> <span class="n">ms</span>
+              \<span class="o">-</span><span class="n">play</span><span class="p">:</span> <span class="mf">34.487</span> <span class="n">ms</span>
+      \<span class="o">-</span><span class="n">extract_data</span><span class="p">:</span> <span class="mf">17.452</span> <span class="n">ms</span> <span class="p">(</span><span class="mf">17.434</span> <span class="n">ms</span><span class="p">)</span>
+          \<span class="o">-</span><span class="n">extract_data</span><span class="p">:</span> <span class="mf">17.434</span> <span class="n">ms</span> <span class="p">(</span><span class="mf">17.354</span> <span class="n">ms</span><span class="p">)</span>
+              \<span class="o">-</span><span class="n">loop_over_classes</span><span class="p">:</span> <span class="mf">17.291</span> <span class="n">ms</span>
+              \<span class="o">-</span><span class="n">write_to_files</span><span class="p">:</span> <span class="mf">0.063</span> <span class="n">ms</span>
+      \<span class="o">-</span><span class="n">extract_data_for_graphics</span><span class="p">:</span> <span class="mf">17.554</span> <span class="n">ms</span> <span class="p">(</span><span class="mf">17.542</span> <span class="n">ms</span><span class="p">)</span>
+          \<span class="o">-</span><span class="n">extract_data_for_graphics</span><span class="p">:</span> <span class="mf">17.542</span> <span class="n">ms</span> <span class="p">(</span><span class="mf">17.515</span> <span class="n">ms</span><span class="p">)</span>
+              \<span class="o">-</span><span class="n">loop_over_n_inf_classes</span><span class="p">:</span> <span class="mf">17.515</span> <span class="n">ms</span>
+</pre></div>
+</div>
+</div>
+<div class="section" id="all-we-have-to-decide-is-what-to-do-with-the-time-that-is-given-us">
+<h3>All we have to decide is what to do with the time that is given us<a class="headerlink" href="#all-we-have-to-decide-is-what-to-do-with-the-time-that-is-given-us" title="Permalink to this headline">¶</a></h3>
+<p>Now I knew where the code was slow, level two of the tower was to
+decode on how I could make it faster. Optimising
+Python code using cython is a whole blog post in itself as
+there are a lot of tips and tricks that I learned. The main advice
+I’d give is to disable all of the indexing and other cleverness
+that cython uses to make C behave like Python. Do this by adding
+the following to the top of your <code class="docutils literal notranslate"><span class="pre">.pyx</span></code> files;:</p>
+<div class="highlight-default notranslate"><div class="highlight"><pre><span></span><span class="c1">#cython: boundscheck=False</span>
+<span class="c1">#cython: cdivision=True</span>
+<span class="c1">#cython: initializedcheck=False</span>
+<span class="c1">#cython: cdivision_warnings=False</span>
+<span class="c1">#cython: wraparound=False</span>
+<span class="c1">#cython: binding=False</span>
+<span class="c1">#cython: initializedcheck=False</span>
+<span class="c1">#cython: nonecheck=False</span>
+<span class="c1">#cython: overflowcheck=False</span>
+</pre></div>
+</div>
+<p>While clever, these cython checks add in extra functions around your code
+that prevent vectorisation, increase indirect memory lookup, and just
+add unnecessary bloat if you already trust that your Python code is
+looping through arrays correctly.</p>
+<p>Another piece of advice is to make sure you <code class="docutils literal notranslate"><span class="pre">cdef</span></code> everything that is
+in a loop. Even forgetting a few variables
+<a class="reference external" href="https://github.com/metawards/MetaWards/commit/8487eb7d94cdfc3f362432ea2b4efca8abe23a15">has a dramatic impact on performance</a>.</p>
+<p>The other advice I have is to not use memory views or other abstractions,
+but to instead just use raw C pointers for contiguous arrays. When I originally
+used memory views like this;:</p>
+<div class="highlight-default notranslate"><div class="highlight"><pre><span></span><span class="n">cdef</span> <span class="n">double</span> <span class="p">[:]</span> <span class="n">a</span> <span class="o">=</span> <span class="n">python_array</span>
+</pre></div>
+</div>
+<p>the code was really slow. This was because every index lookup involved
+cython trying to work out how to convert index <code class="docutils literal notranslate"><span class="pre">i</span></code> into the index
+in <code class="docutils literal notranslate"><span class="pre">python_array</span></code> as cython didn’t know that the array was contiguous.
+Changing this to;:</p>
+<div class="highlight-default notranslate"><div class="highlight"><pre><span></span><span class="n">cdef</span> <span class="n">double</span> <span class="p">[::</span><span class="mi">1</span><span class="p">]</span> <span class="n">a</span> <span class="o">=</span> <span class="n">python_array</span>
+</pre></div>
+</div>
+<p>gave a big speed up, as now cython knew that this was a one-dimensional
+contiguous array. However, when looking at the C code generated, it was
+clear that cython was still adding in weird pointer redirections and
+type conversions that were confusing the compiler. In the end, I switched
+to;:</p>
+<div class="highlight-default notranslate"><div class="highlight"><pre><span></span><span class="n">cdef</span> <span class="n">double</span> <span class="o">*</span> <span class="n">get_double_array_ptr</span><span class="p">(</span><span class="n">double_array</span><span class="p">):</span>
+    <span class="sd">&quot;&quot;&quot;Return the raw C pointer to the passed double array which was</span>
+<span class="sd">       created using create_double_array</span>
+<span class="sd">    &quot;&quot;&quot;</span>
+    <span class="n">cdef</span> <span class="n">double</span> <span class="p">[::</span><span class="mi">1</span><span class="p">]</span> <span class="n">a</span> <span class="o">=</span> <span class="n">double_array</span>
+    <span class="k">return</span> <span class="o">&amp;</span><span class="p">(</span><span class="n">a</span><span class="p">[</span><span class="mi">0</span><span class="p">])</span>
+
+<span class="n">cdef</span> <span class="n">double</span> <span class="o">*</span><span class="n">a</span> <span class="o">=</span> <span class="n">get_double_array_ptr</span><span class="p">(</span><span class="n">python_array</span><span class="p">)</span>
+</pre></div>
+</div>
+<p>Cython now saw the array as just a double pointer, and so the resulting
+C code was exactly if I had written it manually.</p>
+</div>
+<div class="section" id="where-many-paths-and-errands-meet-and-whither-then-i-cannot-say">
+<h3>Where many paths and errands meet. And whither then? I cannot say<a class="headerlink" href="#where-many-paths-and-errands-meet-and-whither-then-i-cannot-say" title="Permalink to this headline">¶</a></h3>
+<p>With the code optimised, and now faster than the C, the third and final
+level was to parallelise the code. MetaWards is a single-threaded C code,
+but inspection of the loops within them suggested that they should
+be parallelisable.</p>
+<p>The great thing about cython is that is trivial to use
+<a class="reference external" href="https://openmp.org">OpenMP</a> to
+parallelise code. Again, how to do this and how to optimise
+parallel code in cython is worth another blog post (or, indeed workshop),
+but in a few days a serial code that took minutes was now a code that
+scaled over 32-64 cores and took seconds. Indeed, OpenMP was so good that
+loops that took 10s-100s of milliseconds were sped up to only take 3-5ms.
+It is unlikely, given parallel overhead, that I could make them much faster.</p>
+<p>Key pointers for performance are to drop the
+<a class="reference external" href="https://wiki.python.org/moin/GlobalInterpreterLock">gil</a> (use <code class="docutils literal notranslate"><span class="pre">nogil</span></code>),
+double-check you’ve <em>dropped the
+gil</em>, and then take a look at the C code to triple-check that there isn’t
+anything that you or cython have implicitly added that causes
+something to be generated in the C code that <strong>takes the #!!#!! gil!</strong></p>
+<p>Also, any variables you assign to are automatically <code class="docutils literal notranslate"><span class="pre">lastprivate</span></code>,
+which means that this doesn’t do what you expect;</p>
+<div class="highlight-cython notranslate"><div class="highlight"><pre><span></span><span class="k">cdef</span> <span class="kt">int</span> <span class="nf">i</span>
+<span class="k">cdef</span> <span class="nf">broken</span> <span class="o">=</span> <span class="mf">0</span>
+
+<span class="k">with</span> <span class="k">nogil</span><span class="p">,</span> <span class="n">parallel</span><span class="p">():</span>
+    <span class="k">for</span> <span class="n">i</span> <span class="ow">in</span> <span class="n">prange</span><span class="p">(</span><span class="mf">0</span><span class="p">,</span> <span class="mf">10</span><span class="p">):</span>
+        <span class="k">if</span> <span class="n">i</span> <span class="o">&gt;</span> <span class="mf">10</span><span class="p">:</span>
+            <span class="n">broken</span> <span class="o">=</span> <span class="mf">1</span>
+            <span class="k">break</span>
+
+<span class="k">if</span> <span class="n">broken</span><span class="p">:</span>
+    <span class="k">print</span><span class="p">(</span><span class="s">&quot;This will be printed as &#39;broken&#39; has become undefined&quot;</span><span class="p">)</span>
+</pre></div>
+</div>
+<p>This means that if you want to save a value, then you have to put it into
+an array. Also, increment operators, like <code class="docutils literal notranslate"><span class="pre">val</span> <span class="pre">+=</span> <span class="pre">something</span></code>, are automatically
+converted into OpenMP reductions, which is wonderful except they are not
+supported when you use <code class="docutils literal notranslate"><span class="pre">parallel()</span></code>. Hence I had lots of code to convert
+back into <code class="docutils literal notranslate"><span class="pre">val</span> <span class="pre">=</span> <span class="pre">val</span> <span class="pre">+</span> <span class="pre">something</span></code>.</p>
+</div>
+</div>
+<div class="section" id="welcome-my-lords-to-isengard">
+<h2>Welcome, my lords, to Isengard<a class="headerlink" href="#welcome-my-lords-to-isengard" title="Permalink to this headline">¶</a></h2>
+<p>So two towers climbed, surely I have now finished? Unfortunatley, not yet.</p>
+<p>Remember I said that there were hidden inputs to programs, like floating
+point precision and number of threads. Well, the journey to optimise the
+Python code exposed these inputs are sources of reproducibility error.</p>
+<p>The first error was when I was optimising the code. Before cythonising,
+the Python version was so slow that my integration test only compared outputs
+up to the 20th day of the simulated outbreak. After half-cythonising, I was
+able to compare a full outbreak and saw that the results were really different.</p>
+<p>Line-by-line comparison showed that a few extra simulated agents were
+infected on day 28 in the C code who were not infected in the Python code.
+This propogated over the outbreak to give a very different result.</p>
+<p>To understand why this was the case I added an <em>if</em> statement to both
+the C and Python codes to print the values of all variables on day 27
+and 28. From this it was clear that one value was very slightly different.
+This made me realise that I had a precision error. I had mistakenly
+changed</p>
+<div class="highlight-python notranslate"><div class="highlight"><pre><span></span><span class="nb">float</span><span class="p">(</span><span class="n">something</span><span class="p">)</span> <span class="o">/</span> <span class="nb">float</span><span class="p">(</span><span class="n">something_else</span><span class="p">)</span>
+</pre></div>
+</div>
+<p>into</p>
+<div class="highlight-cython notranslate"><div class="highlight"><pre><span></span><span class="p">&lt;</span><span class="kt">float</span><span class="p">&gt;(</span><span class="n">something</span><span class="p">)</span> <span class="o">/</span> <span class="p">&lt;</span><span class="kt">float</span><span class="p">&gt;(</span><span class="n">something_else</span><span class="p">)</span>
+</pre></div>
+</div>
+<p>when cythonizing. This was an error as  <code class="docutils literal notranslate"><span class="pre">float</span></code> in Python is
+a <code class="docutils literal notranslate"><span class="pre">double</span></code>, but <code class="docutils literal notranslate"><span class="pre">float</span></code> in cython is a <code class="docutils literal notranslate"><span class="pre">float</span></code>.</p>
+<p>I quickly changed all <code class="docutils literal notranslate"><span class="pre">&lt;float&gt;</span></code> statements into <code class="docutils literal notranslate"><span class="pre">&lt;double&gt;</span></code>, amended the test
+to run more days, and then <a class="reference external" href="https://github.com/metawards/MetaWards/commit/f25f6091a491a4e66840df565733c6b7ec4abb8a#diff-7eb47fc18d4a6196f0940784484a5bf3">everything agreed</a>.</p>
+<div class="section" id="march-of-the-ents">
+<h3>March of the Ents<a class="headerlink" href="#march-of-the-ents" title="Permalink to this headline">¶</a></h3>
+<p>But this was not all… Once the code was parallelised I found another
+reproducibility problem. I had made the random number generator thread-safe
+by giving each thread its own generator, which was deterministically seeded
+based on the main random number generator seeded by the user. I had also
+been very careful to use techniques that ensured a deterministic order of
+operation of calculations, plus order of assignment of work to threads
+(e.g. using <code class="docutils literal notranslate"><span class="pre">schedule=&quot;static&quot;</span></code>).
+This meant that, in theory, MetaWards would give the same answer for the
+same input, when using the same  random number seed,
+and running on same number of threads.</p>
+<p>However, when I ported MetaWards onto
+<a class="reference external" href="https://www.bristol.ac.uk/news/2018/april/supercomputer-collaboration.html">Catalyst</a>,
+one of the University’s large ARM64 supercomputers, I was able to run
+large numbers of parallel
+jobs and quickly saw that a small percentage of jobs were giving different
+outputs.</p>
+<p>Again, I saw that the changes occured at a specific day of the simulated
+outbreak. Suspecting this was a parallelisation problem I systematically
+disabled parallelisation for different parts of the code by changing</p>
+<div class="highlight-cython notranslate"><div class="highlight"><pre><span></span><span class="k">with</span> <span class="k">nogil</span><span class="p">,</span> <span class="n">parallel</span><span class="p">(</span><span class="n">num_threads</span><span class="o">=</span><span class="n">num_threads</span><span class="p">):</span>
+</pre></div>
+</div>
+<p>to</p>
+<div class="highlight-cython notranslate"><div class="highlight"><pre><span></span><span class="k">with</span> <span class="k">nogil</span><span class="p">,</span> <span class="n">parallel</span><span class="p">(</span><span class="n">num_threads</span><span class="o">=</span><span class="mf">1</span><span class="p">):</span>
+</pre></div>
+</div>
+<p>This showed that the difference was occuring on a specific day within
+<a class="reference external" href="https://github.com/metawards/MetaWards/blob/c74bc66f72c7b421f622cf4895f7d6105540b906/src/metawards/utils/_iterate.pyx#L255">one of the parallel loops</a>.</p>
+<p>The problem was that the <code class="docutils literal notranslate"><span class="pre">add_to_buffer</span></code> function I was using to manage
+the large number of reductions in the loop was adding the buffer contents
+when each thread had filled it up. As different threads
+filled the buffer at different times, this meant that the order of addition
+was different for different runs. This was not a problem for most reductions,
+as MetaWards is predominantly an integer code. But the variables that
+hold the <em>force of infection (foi)</em> are doubles, and so the order of these
+reductions did matter. While for &gt;95% of runs the order was the same, there
+were a few runs where the difference caused small numerical differences
+that caused one or two more agents to become infected. These small differences
+then propogated through the model outbreak to create different results.</p>
+<p>For now, I’ve had to leave this section of the code in serial, and so
+sacrifice a little speed for reproducibility. I’ve worked out how to
+do the reduction safely and reproducibly, and plan to fix this problem
+later this week.</p>
+</div>
+</div>
+<div class="section" id="what-s-next">
+<h2>What’s next?<a class="headerlink" href="#what-s-next" title="Permalink to this headline">¶</a></h2>
+<p>Well done for getting this far. I said at the beginning that this blog
+was going to be a long read. So now we have walked from a C code
+to a Python code, and then via cython we have walked MetaWards back
+to being a very C-like code. But it has now been transformed into
+something that is much faster, more modular,
+more reproducible, more robust and more usable. In the
+<a class="reference external" href="../return_of_the_king">next (and final) part</a>,
+I will show why I have worked so hard to translate MetaWards to Python.
+It is the King of Languages, and its power is now enabling me to
+turn MetaWards into an adaptable <em>Minas Tirith</em> that will cope with anything
+that the next few weeks could bring.</p>
+</div>
 </div>
 
   <div class="section">
@@ -78,7 +623,33 @@
 <ul class="current">
 <li class="toctree-l1"><a class="reference internal" href="../about/">About the author</a></li>
 <li class="toctree-l1"><a class="reference internal" href="../fellowship/">Fellowship of the Ring</a></li>
-<li class="toctree-l1 current"><a class="current reference internal" href="#">The Two Towers</a></li>
+<li class="toctree-l1 current"><a class="current reference internal" href="#">The Two Towers</a><ul>
+<li class="toctree-l2"><a class="reference internal" href="#climbing-orthanc">Climbing Orthanc</a><ul>
+<li class="toctree-l3"><a class="reference internal" href="#against-some-i-have-not-yet-been-tested">Against some, I have not yet been tested</a></li>
+<li class="toctree-l3"><a class="reference internal" href="#some-things-that-should-not-have-been-forgotten-were-lost">Some things that should not have been forgotten were lost</a></li>
+<li class="toctree-l3"><a class="reference internal" href="#full-of-darkness-and-danger">Full of darkness and danger</a></li>
+<li class="toctree-l3"><a class="reference internal" href="#his-gaze-pierces-cloud-shadow-earth-and-flesh">His gaze pierces cloud, shadow, earth and flesh</a></li>
+<li class="toctree-l3"><a class="reference internal" href="#it-is-hardly-possible-to-separate-you">It is hardly possible to separate you</a></li>
+<li class="toctree-l3"><a class="reference internal" href="#we-want-a-map-not-a-gollum">We want a map, not a Gollum</a></li>
+<li class="toctree-l3"><a class="reference internal" href="#original-or-extended-edition">Original or Extended Edition?</a></li>
+</ul>
+</li>
+<li class="toctree-l2"><a class="reference internal" href="#climbing-barad-dur">Climbing Barad-dûr</a><ul>
+<li class="toctree-l3"><a class="reference internal" href="#i-need-eagles">I need eagles</a></li>
+<li class="toctree-l3"><a class="reference internal" href="#now-is-the-hour-riders-of-rohan">Now is the hour! Riders of Rohan!</a></li>
+<li class="toctree-l3"><a class="reference internal" href="#i-know-what-hunts-you">I know what hunts you</a></li>
+<li class="toctree-l3"><a class="reference internal" href="#eyes-always-watching">Eyes always watching</a></li>
+<li class="toctree-l3"><a class="reference internal" href="#all-we-have-to-decide-is-what-to-do-with-the-time-that-is-given-us">All we have to decide is what to do with the time that is given us</a></li>
+<li class="toctree-l3"><a class="reference internal" href="#where-many-paths-and-errands-meet-and-whither-then-i-cannot-say">Where many paths and errands meet. And whither then? I cannot say</a></li>
+</ul>
+</li>
+<li class="toctree-l2"><a class="reference internal" href="#welcome-my-lords-to-isengard">Welcome, my lords, to Isengard</a><ul>
+<li class="toctree-l3"><a class="reference internal" href="#march-of-the-ents">March of the Ents</a></li>
+</ul>
+</li>
+<li class="toctree-l2"><a class="reference internal" href="#what-s-next">What’s next?</a></li>
+</ul>
+</li>
 <li class="toctree-l1"><a class="reference internal" href="../return_of_the_king/">Return of the King</a></li>
 </ul>
 
