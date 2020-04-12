@@ -158,7 +158,7 @@ We want a map, not a Gollum
 ---------------------------
 
 With the second level of reproducibility climbed, the last level was to
-embed providence. To understand why providence is important, it is useful
+embed provenance. To understand why provenance is important, it is useful
 to consider the hobbits' journey and the role of Gollum.
 
 Gollum is an interesting character because the hobbits needed him to travel
