@@ -26,9 +26,8 @@ and how the vital role of RSEs is to improve trust.
 
 Part 2: The Two Towers
 ----------------------
-Part two (coming this weekend) discusses how an RSE can climb the 
-two towers of optimisation and increasing robustness, 
-while also improving reproducibility and tracking the provenance of data.
+`Part two <two_towers>`__ discusses how an RSE can climb the 
+two towers of making a code fast, while also keeping it correct.
 
 Part 3: Return of the King
 --------------------------
