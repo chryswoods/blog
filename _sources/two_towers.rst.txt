@@ -231,8 +231,9 @@ Climbing Barad-dûr
 ==================
 
 Now that the Python and C codes were reproducible and in-agreement, the next
-tower to climb was to fix the oliphant in the room, namely that the Python
-code was horribly slow.
+tower to climb was to fix the
+`mûmakil <https://lotr.fandom.com/wiki/Mûmakil>`__
+in the room, namely that the Python code was horribly slow.
 
 Level one was that I needed something magical that would quickly speed
 up the Python. The bulk

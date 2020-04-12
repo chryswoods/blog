@@ -2,7 +2,7 @@
 <feed xmlns="http://www.w3.org/2005/Atom">
   <title type="text">The RSE</title>
   <id>https://chryswoods.github.io/blog/blog/atom.xml</id>
-  <updated>2020-04-12T14:28:44.033089Z</updated>
+  <updated>2020-04-12T14:31:59.748192Z</updated>
   <link href="https://chryswoods.github.io/blog" />
   <link href="https://chryswoods.github.io/blog/blog/atom.xml" rel="self" />
   <generator uri="https://ablog.readthedocs.org" version="0.10.4">ABlog</generator>
