@@ -423,6 +423,11 @@ the following to the top of your ``.pyx`` files;::
   #cython: nonecheck=False
   #cython: overflowcheck=False
 
+.. note::
+
+  Update: I now add these checks to my
+  `setup.py script <https://github.com/metawards/MetaWards/blob/035e9eacaba23b18ddce6788fe9222e04147fe33/setup.py#L196>`__
+
 While clever, these cython checks add in extra functions around your code
 that prevent vectorisation, increase indirect memory lookup, and just
 add unnecessary bloat if you already trust that your Python code is
@@ -486,6 +491,13 @@ double-check you've *dropped the
 gil*, and then take a look at the C code to triple-check that there isn't
 anything that you or cython have implicitly added that causes
 something to be generated in the C code that **takes the #!!#!! gil!**
+
+.. note::
+
+   Update: Since writing I've learned that it is easier to put performance
+   code into a ``with nogil:`` section. This causes a easily-readable
+   compiler error if I accidentally take the gil, and then add a
+   ``with gil:`` when I really want the gil.
 
 Also, any variables you assign to are automatically ``lastprivate``,
 which means that this doesn't do what you expect;
@@ -604,6 +616,11 @@ For now, I've had to leave this section of the code in serial, and so
 sacrifice a little speed for reproducibility. I've worked out how to
 do the reduction safely and reproducibly, and plan to fix this problem
 later this week.
+
+.. note::
+
+   This is now fixed and the function runs in parallel.
+
 
 What's next?
 ============
