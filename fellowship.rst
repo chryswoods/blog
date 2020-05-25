@@ -86,7 +86,7 @@ I am a `Research Software Engineer <https://society-rse.org>`__,
 and so my role
 is strengthening trust relating to the software. This
 is how I was pulled into the 
-`MetaWards <https://metawards.github.io>`__ project. In so doing,
+`MetaWards <https://metawards.org>`__ project. In so doing,
 the last two weeks have taught me much about the vital role
 of research software engineering, and how RSEs can make a
 real difference.
@@ -185,7 +185,7 @@ the software *looks like it works*.
 
 Transforming MetaWards from 
 `where it started <https://github.com/ldanon/MetaWards>`__ to 
-`where it is now <https://metawards.github.io>`__ was a long process
+`where it is now <https://metawards.org>`__ was a long process
 with many stages. This is why this is such a long multi-part blog post.
 
 The first step to building trust was for me to gain trust

@@ -7,7 +7,7 @@ An RSE's Tale
 I have spent the last three weeks working to improve trust and
 reproducability of software that is used to inform goverment
 policy on the Covid-19 outbreak. The result is
-`MetaWards Python <https://metawards.github.io>`__, which
+`MetaWards Python <https://metawards.org>`__, which
 is a Python port of the original
 `MetaWards C code <https://github.com/ldanon/metawards>`__.
 

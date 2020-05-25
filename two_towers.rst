@@ -3,7 +3,7 @@ The Two Towers
 ==============
 
 This is part two of a `three part post <https://chryswoods.github.io/blog>`__
-detailing my RSE work on the `MetaWards project <https://metawards.github.io>`__.
+detailing my RSE work on the `MetaWards project <https://metawards.org>`__.
 In `part one <https://chryswoods.github.io/blog/fellowship>`__
 I talked about trust in software and data, and why my first
 step was to port the `original code <https://github.com/ldanon/MetaWards>`__
@@ -37,13 +37,13 @@ sure that this was run regularly. I asked Lester in my team to set up
 continuous integration using
 `GitHub actions <https://github.com/metawards/MetaWards/actions>`__. He also
 kindly added a status badge to the
-`main website <https://metawards.github.io>`__ so that it was very clear
+`main website <https://metawards.org>`__ so that it was very clear
 when something was broken. I also made sure that we adopted robust
 development practices of using ``devel`` as the development branch,
 ``master`` as the release branch, and using feature branches for day-to-day
 development. As this way of working would be new for some developers,
 we also wrote a
-`detailed developer guide <https://metawards.github.io/MetaWards/development.html>`__
+`detailed developer guide <https://metawards.org/development.html>`__
 that showed how to use feature branches, how to write tests, how to
 use virtual environments, how to document code, together with a general
 coding style guide that would make it easier for others to learn MetaWards.
@@ -225,7 +225,7 @@ This meant that someone reading the outputs would know exactly which versions
 of the code and data we used. We even added in a check to see if the
 code had not been committed to Git. This let us alert the user that
 the code was ``dirty``, and that
-`any outputs may not be reproducible <https://metawards.github.io/MetaWards/usage.html#metawards-program>`__.
+`any outputs may not be reproducible <https://metawards.org/usage.html#metawards-program>`__.
 
 Climbing Barad-dûr
 ==================
