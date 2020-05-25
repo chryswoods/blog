@@ -1,17 +1,17 @@
 
 <!DOCTYPE html>
 
-<html xmlns="http://www.w3.org/1999/xhtml">
+<html>
   <head>
     <meta charset="utf-8" />
     <title>The Two Towers &#8212; chryswoods blog</title>
     <link rel="stylesheet" href="../_static/alabaster.css" type="text/css" />
     <link rel="stylesheet" href="../_static/pygments.css" type="text/css" />
-    <script type="text/javascript" id="documentation_options" data-url_root="../" src="../_static/documentation_options.js"></script>
-    <script type="text/javascript" src="../_static/jquery.js"></script>
-    <script type="text/javascript" src="../_static/underscore.js"></script>
-    <script type="text/javascript" src="../_static/doctools.js"></script>
-    <script type="text/javascript" src="../_static/language_data.js"></script>
+    <script id="documentation_options" data-url_root="../" src="../_static/documentation_options.js"></script>
+    <script src="../_static/jquery.js"></script>
+    <script src="../_static/underscore.js"></script>
+    <script src="../_static/doctools.js"></script>
+    <script src="../_static/language_data.js"></script>
     <link rel="author" title="About these documents" href="../about/" />
     <link rel="index" title="Index" href="../genindex/" />
     <link rel="search" title="Search" href="../search/" />
@@ -52,7 +52,7 @@
   <div class="section" id="the-two-towers">
 <h1>The Two Towers<a class="headerlink" href="#the-two-towers" title="Permalink to this headline">¶</a></h1>
 <p>This is part two of a <a class="reference external" href="https://chryswoods.github.io/blog">three part post</a>
-detailing my RSE work on the <a class="reference external" href="https://metawards.github.io">MetaWards project</a>.
+detailing my RSE work on the <a class="reference external" href="https://metawards.org">MetaWards project</a>.
 In <a class="reference external" href="https://chryswoods.github.io/blog/fellowship">part one</a>
 I talked about trust in software and data, and why my first
 step was to port the <a class="reference external" href="https://github.com/ldanon/MetaWards">original code</a>
@@ -82,13 +82,13 @@ sure that this was run regularly. I asked Lester in my team to set up
 continuous integration using
 <a class="reference external" href="https://github.com/metawards/MetaWards/actions">GitHub actions</a>. He also
 kindly added a status badge to the
-<a class="reference external" href="https://metawards.github.io">main website</a> so that it was very clear
+<a class="reference external" href="https://metawards.org">main website</a> so that it was very clear
 when something was broken. I also made sure that we adopted robust
 development practices of using <code class="docutils literal notranslate"><span class="pre">devel</span></code> as the development branch,
 <code class="docutils literal notranslate"><span class="pre">master</span></code> as the release branch, and using feature branches for day-to-day
 development. As this way of working would be new for some developers,
 we also wrote a
-<a class="reference external" href="https://metawards.github.io/MetaWards/development.html">detailed developer guide</a>
+<a class="reference external" href="https://metawards.org/development.html">detailed developer guide</a>
 that showed how to use feature branches, how to write tests, how to
 use virtual environments, how to document code, together with a general
 coding style guide that would make it easier for others to learn MetaWards.</p>
@@ -247,7 +247,7 @@ parameter and disease data were also printed, e.g.:</p>
 of the code and data we used. We even added in a check to see if the
 code had not been committed to Git. This let us alert the user that
 the code was <code class="docutils literal notranslate"><span class="pre">dirty</span></code>, and that
-<a class="reference external" href="https://metawards.github.io/MetaWards/usage.html#metawards-program">any outputs may not be reproducible</a>.</p>
+<a class="reference external" href="https://metawards.org/usage.html#metawards-program">any outputs may not be reproducible</a>.</p>
 </div>
 </div>
 <div class="section" id="climbing-barad-dur">
@@ -365,7 +365,7 @@ class that recursively measured times of instrumented blocks, e.g.</p>
 <span class="n">p</span> <span class="o">=</span> <span class="n">p</span><span class="o">.</span><span class="n">start</span><span class="p">(</span><span class="s2">&quot;loop&quot;</span><span class="p">)</span>
 
 <span class="k">for</span> <span class="n">i</span> <span class="ow">in</span> <span class="nb">range</span><span class="p">(</span><span class="mi">0</span><span class="p">,</span> <span class="mi">10</span><span class="p">):</span>
-    <span class="n">p</span> <span class="o">=</span> <span class="n">p</span><span class="o">.</span><span class="n">start</span><span class="p">(</span><span class="n">f</span><span class="s2">&quot;iteration_{i}&quot;</span><span class="p">)</span>
+    <span class="n">p</span> <span class="o">=</span> <span class="n">p</span><span class="o">.</span><span class="n">start</span><span class="p">(</span><span class="sa">f</span><span class="s2">&quot;iteration_</span><span class="si">{</span><span class="n">i</span><span class="si">}</span><span class="s2">&quot;</span><span class="p">)</span>
 
     <span class="c1"># do stuff</span>
 
@@ -373,7 +373,7 @@ class that recursively measured times of instrumented blocks, e.g.</p>
 
 <span class="n">p</span> <span class="o">=</span> <span class="n">p</span><span class="o">.</span><span class="n">stop</span><span class="p">()</span>
 
-<span class="k">print</span><span class="p">(</span><span class="n">p</span><span class="p">)</span>
+<span class="nb">print</span><span class="p">(</span><span class="n">p</span><span class="p">)</span>
 </pre></div>
 </div>
 <p>This gave fantastically useful output that guided my cythonizing, e.g.:</p>
@@ -427,6 +427,11 @@ the following to the top of your <code class="docutils literal notranslate"><spa
 <span class="c1">#cython: nonecheck=False</span>
 <span class="c1">#cython: overflowcheck=False</span>
 </pre></div>
+</div>
+<div class="admonition note">
+<p class="admonition-title">Note</p>
+<p>Update: I now add these checks to my
+<a class="reference external" href="https://github.com/metawards/MetaWards/blob/035e9eacaba23b18ddce6788fe9222e04147fe33/setup.py#L196">setup.py script</a></p>
 </div>
 <p>While clever, these cython checks add in extra functions around your code
 that prevent vectorisation, increase indirect memory lookup, and just
@@ -486,6 +491,13 @@ double-check you’ve <em>dropped the
 gil</em>, and then take a look at the C code to triple-check that there isn’t
 anything that you or cython have implicitly added that causes
 something to be generated in the C code that <strong>takes the #!!#!! gil!</strong></p>
+<div class="admonition note">
+<p class="admonition-title">Note</p>
+<p>Update: Since writing I’ve learned that it is easier to put performance
+code into a <code class="docutils literal notranslate"><span class="pre">with</span> <span class="pre">nogil:</span></code> section. This causes a easily-readable
+compiler error if I accidentally take the gil, and then add a
+<code class="docutils literal notranslate"><span class="pre">with</span> <span class="pre">gil:</span></code> when I really want the gil.</p>
+</div>
 <p>Also, any variables you assign to are automatically <code class="docutils literal notranslate"><span class="pre">lastprivate</span></code>,
 which means that this doesn’t do what you expect;</p>
 <div class="highlight-cython notranslate"><div class="highlight"><pre><span></span><span class="k">cdef</span> <span class="kt">int</span> <span class="nf">i</span>
@@ -582,6 +594,10 @@ then propogated through the model outbreak to create different results.</p>
 sacrifice a little speed for reproducibility. I’ve worked out how to
 do the reduction safely and reproducibly, and plan to fix this problem
 later this week.</p>
+<div class="admonition note">
+<p class="admonition-title">Note</p>
+<p>This is now fixed and the function runs in parallel.</p>
+</div>
 </div>
 </div>
 <div class="section" id="what-s-next">
@@ -663,7 +679,7 @@ that the next few weeks could bring.</p>
       
       
       
-      Powered by <a href="http://sphinx-doc.org/">Sphinx 2.2.0</a>
+      Powered by <a href="http://sphinx-doc.org/">Sphinx 3.0.3</a>
       &amp; <a href="https://github.com/bitprophet/alabaster">Alabaster 0.7.12</a>
       
       |

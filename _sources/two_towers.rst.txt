@@ -3,7 +3,7 @@ The Two Towers
 ==============
 
 This is part two of a `three part post <https://chryswoods.github.io/blog>`__
-detailing my RSE work on the `MetaWards project <https://metawards.github.io>`__.
+detailing my RSE work on the `MetaWards project <https://metawards.org>`__.
 In `part one <https://chryswoods.github.io/blog/fellowship>`__
 I talked about trust in software and data, and why my first
 step was to port the `original code <https://github.com/ldanon/MetaWards>`__
@@ -37,13 +37,13 @@ sure that this was run regularly. I asked Lester in my team to set up
 continuous integration using
 `GitHub actions <https://github.com/metawards/MetaWards/actions>`__. He also
 kindly added a status badge to the
-`main website <https://metawards.github.io>`__ so that it was very clear
+`main website <https://metawards.org>`__ so that it was very clear
 when something was broken. I also made sure that we adopted robust
 development practices of using ``devel`` as the development branch,
 ``master`` as the release branch, and using feature branches for day-to-day
 development. As this way of working would be new for some developers,
 we also wrote a
-`detailed developer guide <https://metawards.github.io/MetaWards/development.html>`__
+`detailed developer guide <https://metawards.org/development.html>`__
 that showed how to use feature branches, how to write tests, how to
 use virtual environments, how to document code, together with a general
 coding style guide that would make it easier for others to learn MetaWards.
@@ -225,7 +225,7 @@ This meant that someone reading the outputs would know exactly which versions
 of the code and data we used. We even added in a check to see if the
 code had not been committed to Git. This let us alert the user that
 the code was ``dirty``, and that
-`any outputs may not be reproducible <https://metawards.github.io/MetaWards/usage.html#metawards-program>`__.
+`any outputs may not be reproducible <https://metawards.org/usage.html#metawards-program>`__.
 
 Climbing Barad-dûr
 ==================
@@ -423,6 +423,11 @@ the following to the top of your ``.pyx`` files;::
   #cython: nonecheck=False
   #cython: overflowcheck=False
 
+.. note::
+
+  Update: I now add these checks to my
+  `setup.py script <https://github.com/metawards/MetaWards/blob/035e9eacaba23b18ddce6788fe9222e04147fe33/setup.py#L196>`__
+
 While clever, these cython checks add in extra functions around your code
 that prevent vectorisation, increase indirect memory lookup, and just
 add unnecessary bloat if you already trust that your Python code is
@@ -486,6 +491,13 @@ double-check you've *dropped the
 gil*, and then take a look at the C code to triple-check that there isn't
 anything that you or cython have implicitly added that causes
 something to be generated in the C code that **takes the #!!#!! gil!**
+
+.. note::
+
+   Update: Since writing I've learned that it is easier to put performance
+   code into a ``with nogil:`` section. This causes a easily-readable
+   compiler error if I accidentally take the gil, and then add a
+   ``with gil:`` when I really want the gil.
 
 Also, any variables you assign to are automatically ``lastprivate``,
 which means that this doesn't do what you expect;
@@ -604,6 +616,11 @@ For now, I've had to leave this section of the code in serial, and so
 sacrifice a little speed for reproducibility. I've worked out how to
 do the reduction safely and reproducibly, and plan to fix this problem
 later this week.
+
+.. note::
+
+   This is now fixed and the function runs in parallel.
+
 
 What's next?
 ============
